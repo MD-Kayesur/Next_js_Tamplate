@@ -1,0 +1,32 @@
+"use client";
+import Image from "next/image";
+import logo from "../../assets/icon/logo2.jpg";
+
+const Welcome = () => {
+  return (
+    <div className="h-screen flex">
+      <div className="relative w-full h-screen bg-[#166E55] overflow-hidden">
+        {/* Welcome Message + Logo */}
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center text-yellow-300">
+          {/* Logo */}
+          <Image
+            src={logo}
+            alt="Logo"
+            width={80}
+            height={80}
+            className="mb-4 rounded-xl"
+          />
+
+          <h1 className="text-4xl text-[#FEE57E] sm:text-5xl font-semibold font-Robot mb-2">
+            Welcome, to Admin!
+          </h1>
+          <p className="text-[16px] text-[#FDFCEE] text-center max-w-xs font-Montserrat tracking-widest leading-[20px]">
+            Please log in with your admin info to access the dashboard.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Welcome;
