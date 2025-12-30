@@ -121,7 +121,7 @@ const RoleFilter = () => {
   const options = [
     { label: "All", value: null },
     { label: "User", value: "USER" },
-    { label: "Admin", value: "ADMIN" },
+    // Admin option removed since admin users are filtered out from the list
     // { label: "Super Admin", value: "SUPER_ADMIN" },
   ];
 
@@ -236,7 +236,13 @@ export function UserListTable() {
   console.log("Users data:", users);
 
   const filteredData = React.useMemo(() => {
-    let result = users;
+    // Filter out admin users - only show users with role "USER" (case-insensitive check)
+    let result = users.filter((user: User) => {
+      const userRole = user.role?.toUpperCase();
+      // Exclude both "ADMIN" and any case variation
+      return userRole !== "ADMIN";
+    });
+    
     if (roleFilter) {
       result = result.filter((user: User) => user.role === roleFilter);
     }
