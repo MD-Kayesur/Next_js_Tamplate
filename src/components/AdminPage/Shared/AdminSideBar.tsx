@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MdDashboard } from "react-icons/md";
@@ -18,6 +18,10 @@ import logo from "../../../assets/icon/logo1.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import AdminNavBar from "./AdminNavBar";
+import { useAppDispatch } from "@/redux/hooks/redux-hook";
+import { logOut } from "@/redux/features/auth/authSlice";
+import cookies from "js-cookie";
+import { toast } from "sonner";
 
 interface NavItem {
   title: string;
@@ -58,6 +62,8 @@ const navItems: NavItem[] = [
 const AdminSideBar = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const dispatch = useAppDispatch();
+  const router = useRouter();
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F4F4F4]">
@@ -121,7 +127,20 @@ const AdminSideBar = ({ children }: { children: React.ReactNode }) => {
                   ? "bg-white hover:bg-gray-100 px-2 py-2"
                   : "bg-white hover:bg-gray-100"
               )}
-              onClick={() => alert("Logout function here")}
+              onClick={() => {
+                // Clear token from cookies
+                cookies.remove("token");
+                // Clear Redux state
+                dispatch(logOut());
+                // Redirect to login page
+                router.push("/");
+                // Show success message
+                toast.success("Admin Logged out successfully!");
+                // Force page reload to clear any cached state
+                setTimeout(() => {
+                  window.location.href = "/";
+                }, 100);
+              }}
             >
               <TbLogout className="h-5 w-5 text-red-600" />
               {!collapsed && <span>Logout</span>}

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // LoginForm.tsx
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "../ui/button";
 import { useLoginMutation } from "@/redux/features/auth/authApi";
 import { useDispatch } from "react-redux";
@@ -11,14 +11,47 @@ import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { User } from "@/redux/types/venue.type";
+import { jwtDecode } from "jwt-decode";
+
+interface DecodedToken {
+  role?: string;
+  [key: string]: any;
+}
 
 const LoginForm = () => {
   const router = useRouter();
   const [login, { isLoading }] = useLoginMutation();
   const dispatch = useDispatch();
 
+  // Check if user is already logged in as admin
+  useEffect(() => {
+    const token = Cookies.get("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode<DecodedToken>(token);
+        const userRole = (decoded.role || "").toUpperCase().trim();
+        if (userRole === "ADMIN") {
+          // Already logged in as admin, redirect to dashboard
+          router.push("/admin/dashboard");
+        } else {
+          // Not admin, clear token and stay on login page
+          console.log("Non-admin token detected, clearing:", userRole);
+          Cookies.remove("token");
+        }
+      } catch (error) {
+        // Invalid token, clear it
+        console.error("Invalid token in login page:", error);
+        Cookies.remove("token");
+      }
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Clear any existing token before login attempt
+    Cookies.remove("token");
+    
     const form = e.target as HTMLFormElement;
     const email = form.email.value;
     const password = form.password.value;
@@ -28,31 +61,66 @@ const LoginForm = () => {
     try {
       const response = await login(loginData).unwrap();
 
-      if (response?.user && response?.access_token) {
-        // Map API response to your User type
-        const user: User = {
-          id: response.user.userId, // Map userId to id
-          email: response.user.email,
-          fullName: response.user.fullName,
-          role: response.user.role,
-          currentSubscription: response.user.currentSubscription,
-        };
-
-        // Set token in cookies
-        Cookies.set("token", response.access_token, { expires: 1 }); // expires in 1 day
-
-        // Dispatch user data to Redux store
-        dispatch(
-          setUser({
-            user: user,
-            token: response.access_token,
-          })
-        );
-
-        // Redirect to dashboard
-        router.push("/admin/dashboard");
-        toast.success("Login Successful");
+      // Validate response exists
+      if (!response?.user || !response?.access_token) {
+        toast.error("Invalid login response. Please try again.");
+        return;
       }
+
+      // First check: Validate role from response (case-insensitive)
+      const userRoleFromResponse = (response.user.role || "").toUpperCase().trim();
+      
+      // Second check: Decode JWT token to verify role in token
+      let userRoleFromToken: string = "";
+      try {
+        const decoded = jwtDecode<DecodedToken>(response.access_token);
+        userRoleFromToken = (decoded.role || "").toUpperCase().trim();
+      } catch (decodeError) {
+        console.error("Token decode error:", decodeError);
+        toast.error("Invalid token received. Please try again.");
+        Cookies.remove("token");
+        return;
+      }
+
+      // Strict validation: BOTH response and token must have ADMIN role
+      const isAdmin = userRoleFromResponse === "ADMIN" && userRoleFromToken === "ADMIN";
+      
+      if (!isAdmin) {
+        console.log("Login blocked - Role check failed:", {
+          responseRole: userRoleFromResponse,
+          tokenRole: userRoleFromToken,
+          originalResponseRole: response.user.role
+        });
+        toast.error("Access denied. Only administrators can login to this dashboard.");
+        // Ensure no token is set
+        Cookies.remove("token");
+        return;
+      }
+
+      // Only proceed if role is ADMIN (this point should never be reached if role is not ADMIN)
+      // Map API response to your User type
+      const user: User = {
+        id: response.user.userId, // Map userId to id
+        email: response.user.email,
+        fullName: response.user.fullName,
+        role: response.user.role,
+        currentSubscription: response.user.currentSubscription,
+      };
+
+      // Set token in cookies
+      Cookies.set("token", response.access_token, { expires: 1 }); // expires in 1 day
+
+      // Dispatch user data to Redux store
+      dispatch(
+        setUser({
+          user: user,
+          token: response.access_token,
+        })
+      );
+
+      // Redirect to dashboard
+      router.push("/admin/dashboard");
+      toast.success("Login Successful");
     } catch (error: any) {
       console.error("Login error details:", error);
       if (error?.data?.message) {
