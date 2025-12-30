@@ -21,10 +21,18 @@ const AdminNavBar = () => {
   const router = useRouter();
 
   const handleLogout = () => {
+    // Clear token from cookies
     cookies.remove("token");
+    // Clear Redux state
     dispatch(logOut());
-    toast.success("Admin Logged out successfully!");
+    // Redirect to login page
     router.push("/");
+    // Show success message
+    toast.success("Admin Logged out successfully!");
+    // Force page reload to clear any cached state
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 100);
   };
 
   return (
