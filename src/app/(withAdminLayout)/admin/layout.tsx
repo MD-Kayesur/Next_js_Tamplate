@@ -9,10 +9,12 @@ import { MdDashboard, MdOutlinePayments } from "react-icons/md";
 import { RiArrowLeftSLine, RiArrowRightSLine } from "react-icons/ri";
 import { IoSettingsOutline } from "react-icons/io5";
 import { TbLogout } from "react-icons/tb";
-import { HiOutlineMenuAlt2 } from "react-icons/hi";
-import logo from "../../../assets/icon/logo2.jpg";
-import profile from "../../../assets/images/profile.png";
+import { CgProfile } from "react-icons/cg";
 
+import { HiOutlineMenuAlt2 } from "react-icons/hi";
+import logo from "../../../assets/logo/path.png";
+import profile from "../../../assets/images/profile.png";
+import logo2 from "../../../assets/logo/Logo2.svg";
 import { cn } from "@/lib/utils";
 import AdminNavBar from "@/components/AdminPage/Shared/AdminNavBar";
 import { useAppDispatch } from "@/redux/hooks/redux-hook";
@@ -43,6 +45,11 @@ const navItems: NavItem[] = [
     title: "Subscription Plans",
     href: "/admin/subscription-plan",
     icon: IoSettingsOutline,
+  },
+  {
+    title: "Admin Profile",
+    href: "/admin/admin-profile",
+    icon:  CgProfile ,
   },
 ];
 
@@ -95,20 +102,18 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         >
           <div className="flex items-center justify-between mb-6 h-[48px]">
             <div className="flex items-center gap-2">
-              <div className="w-[50px] h-[54px]">
+              {collapsed ? (
                 <Image
                   src={logo}
                   alt="Logo"
-                  width={60}
-                  height={60}
-                  className=" rounded-2xl"
+                  width={40}
+                  height={40}
+                  className="h-full"
                 />
-              </div>
-              {!collapsed && (
-                <h1 className="text-[26px] font-bold leading-normal font-['Sansita_Swashed'] bg-gradient-to-b from-[#408DF0] to-[#0E579E] text-transparent bg-clip-text">
-                  <span className="text-[#FEE985]">Great</span>{" "}
-                  <span className="text-[#FEFCEC]">2D</span>
-                </h1>
+              ) : (
+                <div className=" ">
+                  <Image src={logo2} alt="Logo" className="w-50 h-full" />
+                </div>
               )}
             </div>
 

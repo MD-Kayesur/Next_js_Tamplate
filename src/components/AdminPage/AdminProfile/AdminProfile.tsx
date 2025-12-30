@@ -14,8 +14,9 @@ import Image from "next/image";
 import {
   useGetProfileQuery,
   useUpdateProfileMutation,
+  useChangePasswordMutation,
 } from "@/redux/features/auth/profileApi";
-import { Camera, Loader2, Mail, Phone, RefreshCw } from "lucide-react";
+import { Camera, Loader2, Mail, Phone, RefreshCw, Lock, Eye, EyeOff } from "lucide-react";
 import { LiaUserEditSolid } from "react-icons/lia";
 
 import { toast } from "sonner";
@@ -29,15 +30,27 @@ import PageLoader from "../Shared/PageLoader";
 const AdminProfile = () => {
   const { data: profile, isLoading, isError, error } = useGetProfileQuery();
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
+  const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
 
   const [formData, setFormData] = useState({
     fullName: "",
     phoneNumber: "",
   });
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    oldPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
 
   // Initialize form when profile loads or dialog opens
   useEffect(() => {
@@ -90,6 +103,35 @@ const AdminProfile = () => {
     } catch (error) {
       toast.error("Failed to update profile");
       console.error("Failed to update profile:", error);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      await changePassword({
+        oldPassword: passwordData.oldPassword,
+        newPassword: passwordData.newPassword,
+      }).unwrap();
+      toast.success("Password changed successfully");
+      setIsPasswordDialogOpen(false);
+      setPasswordData({
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to change password");
+      console.error("Failed to change password:", error);
     }
   };
 
@@ -297,6 +339,204 @@ const AdminProfile = () => {
             <p className="text-gray-900">
               {profile.phoneNumber || "Not provided"}
             </p>
+          </div>
+
+          {/* Change Password Section */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Lock className="h-4 w-4 text-gray-400" />
+                <h3 className="text-sm text-gray-500 font-semibold">Password</h3>
+              </div>
+              <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                  >
+                    Change Password
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px] rounded-lg">
+                  <DialogHeader className="mb-4">
+                    <DialogTitle className="text-2xl font-semibold text-gray-900">
+                      Change Password
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="oldPassword"
+                        className="text-gray-700 font-medium"
+                      >
+                        Current Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="oldPassword"
+                          type={showPasswords.oldPassword ? "text" : "password"}
+                          value={passwordData.oldPassword}
+                          onChange={(e) =>
+                            setPasswordData((prev) => ({
+                              ...prev,
+                              oldPassword: e.target.value,
+                            }))
+                          }
+                          className="focus-visible:ring-blue-500 pr-10"
+                          disabled={isChangingPassword}
+                          placeholder="Enter current password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              oldPassword: !prev.oldPassword,
+                            }))
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                          disabled={isChangingPassword}
+                        >
+                          {showPasswords.oldPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="newPassword"
+                        className="text-gray-700 font-medium"
+                      >
+                        New Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showPasswords.newPassword ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) =>
+                            setPasswordData((prev) => ({
+                              ...prev,
+                              newPassword: e.target.value,
+                            }))
+                          }
+                          className="focus-visible:ring-blue-500 pr-10"
+                          disabled={isChangingPassword}
+                          placeholder="Enter new password (min 6 characters)"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              newPassword: !prev.newPassword,
+                            }))
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                          disabled={isChangingPassword}
+                        >
+                          {showPasswords.newPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="confirmPassword"
+                        className="text-gray-700 font-medium"
+                      >
+                        Confirm New Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showPasswords.confirmPassword ? "text" : "password"}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordData((prev) => ({
+                              ...prev,
+                              confirmPassword: e.target.value,
+                            }))
+                          }
+                          className="focus-visible:ring-blue-500 pr-10"
+                          disabled={isChangingPassword}
+                          placeholder="Confirm new password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPasswords((prev) => ({
+                              ...prev,
+                              confirmPassword: !prev.confirmPassword,
+                            }))
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 cursor-pointer"
+                          disabled={isChangingPassword}
+                        >
+                          {showPasswords.confirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <AlertDialogFooter className="mt-6">
+                    <Button
+                      className="cursor-pointer"
+                      variant="outline"
+                      onClick={() => {
+                        setIsPasswordDialogOpen(false);
+                        setPasswordData({
+                          oldPassword: "",
+                          newPassword: "",
+                          confirmPassword: "",
+                        });
+                        setShowPasswords({
+                          oldPassword: false,
+                          newPassword: false,
+                          confirmPassword: false,
+                        });
+                      }}
+                      disabled={isChangingPassword}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handlePasswordChange}
+                      disabled={
+                        isChangingPassword ||
+                        !passwordData.oldPassword ||
+                        !passwordData.newPassword ||
+                        !passwordData.confirmPassword
+                      }
+                      className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Changing...
+                        </>
+                      ) : (
+                        "Change Password"
+                      )}
+                    </Button>
+                  </AlertDialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Subscription Section */}

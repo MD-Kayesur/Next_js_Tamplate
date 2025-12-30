@@ -4,7 +4,7 @@ import { useGetPaymentsQuery } from "@/redux/features/auth/paymentApi";
 import { useParams, useRouter } from "next/navigation";
 import defaultAvatar from "@/assets/images/profile.png";
 import Image from "next/image";
-import { PaymentStatus } from "@/redux/types/venue.type";
+import { Subscription } from "@/redux/types/venue.type";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,60 +14,19 @@ import Title from "@/components/reuseabelComponents/Title";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
-// Type definitions
-interface User {
-  fullName: string;
-  email: string;
-  phoneNumber?: string;
-}
-
-interface Plan {
-  name: string;
-  price: number;
-  interval?: string;
-  features: string[];
-}
-
-interface Subscription {
-  user: User;
-  plan: Plan;
-  startDate: string;
-  endDate: string;
-}
-
-interface Payment {
-  id: string;
-  transactionId: string;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  createdAt: string;
-  subscription: Subscription;
-}
-
 const STATUS_CONFIG: Record<
-  PaymentStatus,
+  "active" | "expired",
   { text: string; bg: string; textColor: string }
 > = {
-  SUCCESS: {
-    text: "Success",
+  active: {
+    text: "Active",
     bg: "bg-emerald-50",
     textColor: "text-emerald-700",
   },
-  FAILED: {
-    text: "Failed",
+  expired: {
+    text: "Expired",
     bg: "bg-red-50",
     textColor: "text-red-700",
-  },
-  PENDING: {
-    text: "Pending",
-    bg: "bg-amber-50",
-    textColor: "text-amber-700",
-  },
-  REFUNDED: {
-    text: "Refunded",
-    bg: "bg-purple-50",
-    textColor: "text-purple-700",
   },
 };
 
@@ -115,11 +74,11 @@ const PaymentHeader = ({
   status,
 }: {
   transactionId: string;
-  status: PaymentStatus;
+  status: "active" | "expired";
 }) => (
   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
-      <Title title="Payment Details" />
+      <Title title="Subscription Details" />
       <p className="text-black font-semibold mt-2">
         Transaction ID: <span className="text-gray-600">{transactionId}</span>
       </p>
@@ -132,7 +91,7 @@ const PaymentHeader = ({
   </div>
 );
 
-const UserInfoCard = ({ user }: { user: User }) => (
+const UserInfoCard = ({ user }: { user: Subscription["user"] }) => (
   <Card className="lg:col-span-1">
     <CardHeader>
       <CardTitle className="text-lg font-semibold">User Information</CardTitle>
@@ -140,7 +99,7 @@ const UserInfoCard = ({ user }: { user: User }) => (
     <CardContent>
       <div className="flex items-center space-x-4">
         <Image
-          src={defaultAvatar}
+          src={user.profilePictureUrl || defaultAvatar}
           alt={user.fullName}
           width={80}
           height={80}
@@ -150,16 +109,13 @@ const UserInfoCard = ({ user }: { user: User }) => (
         <div className="space-y-1">
           <p className="font-medium text-lg">{user.fullName}</p>
           <p className="text-muted-foreground">{user.email}</p>
-          {user.phoneNumber && (
-            <p className="text-muted-foreground">{user.phoneNumber}</p>
-          )}
         </div>
       </div>
     </CardContent>
   </Card>
 );
 
-const PaymentInfoCard = ({ payment }: { payment: Payment }) => (
+const PaymentInfoCard = ({ subscription }: { subscription: Subscription }) => (
   <Card>
     <CardHeader>
       <CardTitle className="text-lg font-semibold">
@@ -169,16 +125,16 @@ const PaymentInfoCard = ({ payment }: { payment: Payment }) => (
     <CardContent className="space-y-3">
       <InfoRow
         label="Amount"
-        value={`${payment.amount.toLocaleString()} ${payment.currency}`}
+        value={`$${subscription.subscriptionPlan.price.toLocaleString()}`}
       />
       <InfoRow
         label="Date"
-        value={format(new Date(payment.createdAt), "MMM dd, yyyy HH:mm")}
+        value={format(new Date(subscription.createdAt), "MMM dd, yyyy HH:mm")}
       />
-      <InfoRow label="Payment Method" value="Credit Card" />
+      <InfoRow label="Transaction ID" value={subscription.transactionId} />
       <InfoRow
-        label="Invoice Number"
-        value={`INV-${payment.transactionId.slice(0, 8).toUpperCase()}`}
+        label="Subscription ID"
+        value={subscription.subscriptionId.slice(0, 8).toUpperCase()}
       />
     </CardContent>
   </Card>
@@ -186,10 +142,8 @@ const PaymentInfoCard = ({ payment }: { payment: Payment }) => (
 
 const SubscriptionInfoCard = ({
   subscription,
-  currency,
 }: {
   subscription: Subscription;
-  currency: string;
 }) => (
   <Card>
     <CardHeader>
@@ -198,18 +152,25 @@ const SubscriptionInfoCard = ({
       </CardTitle>
     </CardHeader>
     <CardContent className="space-y-3">
-      <InfoRow label="Plan" value={subscription.plan.name} />
+      <InfoRow label="Plan" value={subscription.subscriptionPlan.planName} />
       <InfoRow
         label="Price"
-        value={`${subscription.plan.price.toLocaleString()} ${currency}`}
+        value={`$${subscription.subscriptionPlan.price.toLocaleString()}`}
       />
-      <InfoRow label="Billing Cycle" value="Monthly" />
+      <InfoRow 
+        label="Duration" 
+        value={subscription.subscriptionPlan.duration === 1 ? "Monthly" : subscription.subscriptionPlan.duration === 2 ? "Yearly" : `${subscription.subscriptionPlan.duration} months`} 
+      />
       <InfoRow
         label="Period"
         value={`${format(
           new Date(subscription.startDate),
           "MMM dd, yyyy"
-        )} - ${format(new Date(subscription.endDate), "MMM dd, yyyy")}`}
+        )} - ${format(new Date(subscription.expiresAt), "MMM dd, yyyy")}`}
+      />
+      <InfoRow
+        label="Days Remaining"
+        value={`${subscription.daysRemaining} days`}
       />
     </CardContent>
   </Card>
@@ -264,16 +225,18 @@ const FeatureItem = ({
 export function PaymentDetails() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { data: payments, isLoading, isError } = useGetPaymentsQuery();
+  const { data: subscriptionsData, isLoading, isError } = useGetPaymentsQuery("all");
 
-  const payment = payments?.find((p: Payment) => p.id === id);
+  const subscription = subscriptionsData?.subscriptions.find(
+    (s: Subscription) => s.subscriptionId === id
+  );
 
   if (isLoading) return <LoadingState />;
   if (isError)
     return (
-      <ErrorState message="Failed to load payment details. Please try again later." />
+      <ErrorState message="Failed to load subscription details. Please try again later." />
     );
-  if (!payment) return <NotFoundState />;
+  if (!subscription) return <NotFoundState />;
 
   return (
     <div className="mx-auto space-y-6">
@@ -288,20 +251,17 @@ export function PaymentDetails() {
       </Button>
 
       <PaymentHeader
-        transactionId={payment.transactionId}
-        status={payment.status}
+        transactionId={subscription.transactionId}
+        status={subscription.status}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <UserInfoCard user={payment.subscription.user} />
-        <PaymentInfoCard payment={payment} />
-        <SubscriptionInfoCard
-          subscription={payment.subscription}
-          currency={payment.currency}
-        />
+        <UserInfoCard user={subscription.user} />
+        <PaymentInfoCard subscription={subscription} />
+        <SubscriptionInfoCard subscription={subscription} />
         <PlanFeaturesCard
-          features={payment.subscription.plan.features}
-          planName={payment.subscription.plan.name}
+          features={subscription.subscriptionPlan.features}
+          planName={subscription.subscriptionPlan.planName}
         />
       </div>
     </div>

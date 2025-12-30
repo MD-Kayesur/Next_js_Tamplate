@@ -9,8 +9,15 @@ export const userApi = baseApi.injectEndpoints({
       }),
       providesTags: ["User"],
     }),
+    deleteUser: build.mutation<{ message: string }, string>({
+      query: (userId) => ({
+        url: `/users/${userId}/permanent`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["User"],
+    }),
   }),
   overrideExisting: false,
 });
 
-export const { useGetUsersQuery } = userApi;
+export const { useGetUsersQuery, useDeleteUserMutation } = userApi;

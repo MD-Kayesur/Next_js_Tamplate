@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import logo from "../../assets/icon/logo2.jpg";
+import logo from "../../assets/logo/path.png";
 
 const Welcome = () => {
   return (

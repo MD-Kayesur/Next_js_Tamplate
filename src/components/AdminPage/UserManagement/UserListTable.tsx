@@ -4,6 +4,7 @@
 import React from "react";
 import Image from "next/image";
 import { IoChevronDown, IoSearch } from "react-icons/io5";
+import { MdDelete } from "react-icons/md";
 import {
   useReactTable,
   ColumnDef,
@@ -12,7 +13,8 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
 } from "@tanstack/react-table";
-import { useGetUsersQuery } from "@/redux/features/auth/userApi";
+import { useGetUsersQuery, useDeleteUserMutation } from "@/redux/features/auth/userApi";
+import { toast } from "sonner";
 
 import { setSearchTerm, setRoleFilter } from "@/redux/features/auth/userSlice";
 
@@ -78,6 +80,36 @@ const RoleBadge = ({ role }: { role: User["role"] }) => {
     >
       {roleText[role] || role}
     </span>
+  );
+};
+
+const DeleteUserButton = ({ user }: { user: User }) => {
+  const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
+
+  const handleDelete = async () => {
+    try {
+      // Use userId if it exists in the user object, otherwise use id
+      const userIdToDelete = (user as any).userId || user.id;
+      await deleteUser(userIdToDelete).unwrap();
+      toast.success(`User ${user.fullName} has been permanently deleted`);
+    } catch (error: any) {
+      toast.error(error?.data?.message || "Failed to delete user");
+    }
+  };
+
+  return (
+    <div className="flex justify-center items-center">
+      <Button
+        size="sm"
+        variant="destructive"
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="h-8 px-3 text-xs cursor-pointer flex items-center gap-1"
+      >
+        <MdDelete className="h-4 w-4" />
+        {isDeleting ? "Deleting..." : "Delete"}
+      </Button>
+    </div>
   );
 };
 
@@ -154,15 +186,15 @@ const columns: ColumnDef<User>[] = [
       );
     },
   },
-  {
-    accessorKey: "phoneNumber",
-    header: "Phone",
-    cell: ({ row }) => (
-      <div className="text-gray-700">
-        {row.getValue("phoneNumber") || "N/A"}
-      </div>
-    ),
-  },
+  // {
+  //   accessorKey: "phoneNumber",
+  //   header: "Phone",
+  //   cell: ({ row }) => (
+  //     <div className="text-gray-700">
+  //       {/* {row.getValue("phoneNumber") || "N/A"} */}
+  //     </div>
+  //   ),
+  // },
   {
     accessorKey: "role",
     header: () => <div className="text-left">Role</div>,
@@ -185,6 +217,11 @@ const columns: ColumnDef<User>[] = [
         })}
       </div>
     ),
+  },
+  {
+    id: "actions",
+    header: () => <div className="text-center">Actions</div>,
+    cell: ({ row }) => <DeleteUserButton user={row.original} />,
   },
 ];
 
