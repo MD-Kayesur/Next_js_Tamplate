@@ -29,52 +29,42 @@ import { useGetPaymentsQuery } from "@/redux/features/auth/paymentApi";
 
 import defaultAvatar from "../../../assets/images/profile.png";
 
-import { Payment, PaymentStatus } from "@/redux/types/venue.type";
+import { Subscription, SubscriptionStatusFilter } from "@/redux/types/venue.type";
 import PageLoader from "../Shared/PageLoader";
 import { Button } from "@/components/ui/button";
 
-// Status configuration
+// Status configuration for subscriptions
 const STATUS_CONFIG: Record<
-  PaymentStatus,
+  "active" | "expired",
   { text: string; bg: string; textColor: string }
 > = {
-  SUCCESS: {
-    text: "Success",
+  active: {
+    text: "Active",
     bg: "bg-green-100",
     textColor: "text-green-800",
   },
-  FAILED: {
-    text: "Failed",
+  expired: {
+    text: "Expired",
     bg: "bg-red-100",
     textColor: "text-red-800",
-  },
-  PENDING: {
-    text: "Pending",
-    bg: "bg-yellow-100",
-    textColor: "text-yellow-800",
-  },
-  REFUNDED: {
-    text: "Refunded",
-    bg: "bg-purple-100",
-    textColor: "text-purple-800",
   },
 };
 
 // Columns definition
 export const getColumns = (
-  _setStatusFilter: (status: PaymentStatus | null) => void,
+  _setStatusFilter: (status: SubscriptionStatusFilter) => void,
   statusFilterDropdown: React.ReactNode
-): ColumnDef<Payment>[] => [
+): ColumnDef<Subscription>[] => [
   {
     accessorKey: "user",
     header: "User Info",
     cell: ({ row }) => {
-      const user = row.original.subscription.user;
+      const user = row.original.user;
       return (
         <div className="flex items-center space-x-3">
           <div className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-200">
             <Image
-              src={defaultAvatar}
+              src={user.profilePictureUrl || defaultAvatar}
               alt={user.fullName}
               width={40}
               height={40}
@@ -93,7 +83,7 @@ export const getColumns = (
     accessorKey: "status",
     header: () => statusFilterDropdown,
     cell: ({ row }) => {
-      const status = row.getValue("status") as PaymentStatus;
+      const status = row.getValue("status") as "active" | "expired";
       const config = STATUS_CONFIG[status];
 
       return (
@@ -109,14 +99,14 @@ export const getColumns = (
     },
   },
   {
-    accessorKey: "amount",
+    accessorKey: "price",
     header: () => <div className="text-right">Amount</div>,
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
+      const price = row.original.subscriptionPlan.price;
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: row.original.currency || "USD",
-      }).format(amount);
+        currency: "USD",
+      }).format(price);
 
       return (
         <div className="text-right font-medium text-gray-900">{formatted}</div>
@@ -127,8 +117,18 @@ export const getColumns = (
     accessorKey: "plan",
     header: () => <div className="text-left">Plan</div>,
     cell: ({ row }) => {
-      const plan = row.original.subscription.plan;
-      return <div className="text-left text-gray-700">{plan.name}</div>;
+      const plan = row.original.subscriptionPlan;
+      return <div className="text-left text-gray-700">{plan.planName}</div>;
+    },
+  },
+  {
+    accessorKey: "daysRemaining",
+    header: () => <div className="text-center">Days Remaining</div>,
+    cell: ({ row }) => {
+      const days = row.original.daysRemaining;
+      return (
+        <div className="text-center font-medium text-gray-900">{days} days</div>
+      );
     },
   },
   {
@@ -137,7 +137,7 @@ export const getColumns = (
     cell: ({ row }) => (
       <div className="flex justify-center space-x-2">
         <Link
-          href={`/admin/all-payment/details/${row.original.id}`}
+          href={`/admin/all-payment/details/${row.original.subscriptionId}`}
           className="text-gray-700 hover:bg-gray-50 cursor-pointer border border-gray-300 rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:text-gray-900"
         >
           View Details
@@ -149,24 +149,21 @@ export const getColumns = (
 
 // Main component
 export function AllPayment() {
-  const { data: payments, isLoading, isError } = useGetPaymentsQuery();
-  console.log("Payments Data:", payments);
+  const [statusFilter, setStatusFilter] = React.useState<SubscriptionStatusFilter>("all");
+  const { data: subscriptionsData, isLoading, isError } = useGetPaymentsQuery(statusFilter);
+  console.log("Subscriptions Data:", subscriptionsData);
+  
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [statusFilter, setStatusFilter] = React.useState<PaymentStatus | null>(
-    null
-  );
   const [statusDropdownOpen, setStatusDropdownOpen] = React.useState(false);
 
-  const filteredData = React.useMemo(() => {
-    if (!payments) return [];
-    if (!statusFilter) return payments;
-    return payments.filter((payment) => payment.status === statusFilter);
-  }, [payments, statusFilter]);
+  const subscriptions = React.useMemo(() => {
+    return subscriptionsData?.subscriptions || [];
+  }, [subscriptionsData]);
 
   const statusFilterDropdown = (
     <div className="relative inline-block text-left">
@@ -178,7 +175,11 @@ export function AllPayment() {
         <span className="whitespace-nowrap ">
           Status:{" "}
           <span className="font-semibold text-gray-800 ">
-            {statusFilter ? STATUS_CONFIG[statusFilter].text : "All"}
+            {statusFilter === "all" 
+              ? "All" 
+              : statusFilter === "active" 
+              ? "Active" 
+              : "Expired"}
           </span>
         </span>
         <IoChevronDown
@@ -193,12 +194,12 @@ export function AllPayment() {
           <div className="py-1 text-sm text-gray-700">
             <div
               className={`px-4 py-1.5 cursor-pointer rounded-sm ${
-                !statusFilter
+                statusFilter === "all"
                   ? "bg-indigo-50 text-indigo-700 font-medium"
                   : "hover:bg-gray-100"
               }`}
               onClick={() => {
-                setStatusFilter(null);
+                setStatusFilter("all");
                 setStatusDropdownOpen(false);
               }}
             >
@@ -213,7 +214,7 @@ export function AllPayment() {
                     : "hover:bg-gray-100"
                 }`}
                 onClick={() => {
-                  setStatusFilter(status as PaymentStatus);
+                  setStatusFilter(status as SubscriptionStatusFilter);
                   setStatusDropdownOpen(false);
                 }}
               >
@@ -232,7 +233,7 @@ export function AllPayment() {
   );
 
   const table = useReactTable({
-    data: filteredData || [],
+    data: subscriptions,
     columns,
     state: {
       sorting,
@@ -337,10 +338,15 @@ export function AllPayment() {
             {Math.min(
               (table.getState().pagination.pageIndex + 1) *
                 table.getState().pagination.pageSize,
-              filteredData.length
+              subscriptions.length
             )}
           </span>{" "}
-          of <span className="font-medium">{filteredData.length}</span> payments
+          of <span className="font-medium">{subscriptionsData?.total || subscriptions.length}</span> subscriptions
+          {subscriptionsData && (
+            <span className="ml-2 text-gray-500">
+              ({subscriptionsData.activeCount} active, {subscriptionsData.expiredCount} expired)
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
           <Button

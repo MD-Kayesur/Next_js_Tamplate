@@ -606,11 +606,11 @@ export default function SubscriptionPlanControl() {
                   ))}
                 </ul>
               </CardContent>
-              <CardFooter className="mt-2">
+              {/* <CardFooter className="mt-2">
                 <Button className="w-full bg-blue-600 hover:bg-blue-700">
                   Choose Plan
                 </Button>
-              </CardFooter>
+              </CardFooter> */}
             </Card>
           ))}
         </div>

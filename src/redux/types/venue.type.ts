@@ -280,6 +280,48 @@ export interface Payment {
 
 export type PaymentStatus = "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
 
+// New Subscription Types based on API response
+export interface SubscriptionUser {
+  userId: string;
+  email: string;
+  fullName: string;
+  profilePictureUrl: string | null;
+}
+
+export interface SubscriptionPlan {
+  subscriptionPlanId: string;
+  planName: string;
+  description: string;
+  price: number;
+  duration: number;
+  features: string[];
+}
+
+export interface Subscription {
+  subscriptionId: string;
+  userId: string;
+  subscriptionPlanId: string;
+  transactionId: string;
+  startDate: string;
+  expiresAt: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user: SubscriptionUser;
+  subscriptionPlan: SubscriptionPlan;
+  status: "active" | "expired";
+  daysRemaining: number;
+}
+
+export interface SubscriptionsResponse {
+  total: number;
+  activeCount: number;
+  expiredCount: number;
+  subscriptions: Subscription[];
+}
+
+export type SubscriptionStatusFilter = "all" | "active" | "expired";
+
 /* Admin/ user profile */
 export interface IProfile {
   id: string;
