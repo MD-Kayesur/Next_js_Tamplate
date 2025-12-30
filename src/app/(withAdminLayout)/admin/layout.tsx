@@ -9,6 +9,8 @@ import { MdDashboard, MdOutlinePayments } from "react-icons/md";
 import { RiArrowLeftSLine, RiArrowRightSLine } from "react-icons/ri";
 import { IoSettingsOutline } from "react-icons/io5";
 import { TbLogout } from "react-icons/tb";
+import { CgProfile } from "react-icons/cg";
+
 import { HiOutlineMenuAlt2 } from "react-icons/hi";
 import logo from "../../../assets/logo/path.png";
 import profile from "../../../assets/images/profile.png";
@@ -43,6 +45,11 @@ const navItems: NavItem[] = [
     title: "Subscription Plans",
     href: "/admin/subscription-plan",
     icon: IoSettingsOutline,
+  },
+  {
+    title: "Admin Profile",
+    href: "/admin/admin-profile",
+    icon:  CgProfile ,
   },
 ];
 

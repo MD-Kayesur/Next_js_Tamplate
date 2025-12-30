@@ -90,12 +90,12 @@ const CalculateCard = () => {
       change: getChange(usersLast30.length, userCount),
       // unit: `${usersLast30.length} new this month`,
     },
-    {
-      title: "Active Courses",
-      amount: `${planCount} courses`,
-      change: getChange(plansLast30.length, planCount),
-      // unit: `${plansLast30.length} added recently`,
-    },
+    // {
+    //   title: "Active Courses",
+    //   amount: `${planCount} courses`,
+    //   change: getChange(plansLast30.length, planCount),
+    //   // unit: `${plansLast30.length} added recently`,
+    // },
     {
       title: "Avg. Revenue",
       amount: `$${avgRevenueAll.toFixed(2)}`,
