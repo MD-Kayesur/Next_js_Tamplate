@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import Cookies from "js-cookie";
 
-const baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT;
+const baseURL = "https://api.billedsmart.com"	;
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: baseURL,
