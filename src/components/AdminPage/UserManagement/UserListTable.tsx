@@ -167,6 +167,7 @@ const columns: ColumnDef<User>[] = [
     header: "User",
     cell: ({ row }) => {
       const user = row.original;
+      console.log("User:", user);
       return (
         <div className="flex items-center gap-3">
           <div className="relative h-10 w-10 flex-shrink-0">
@@ -200,11 +201,11 @@ const columns: ColumnDef<User>[] = [
     header: () => <div className="text-left">Role</div>,
     cell: ({ row }) => <RoleBadge role={row.getValue("role")} />,
   },
-  {
-    accessorKey: "isSubscribed",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("isSubscribed")} />,
-  },
+  // {
+  //   accessorKey: "isSubscribed",
+  //   header: "Status",
+  //   cell: ({ row }) => <StatusBadge status={row.getValue("isSubscribed")} />,
+  // },
   {
     accessorKey: "createdAt",
     header: "Joined Date",
