@@ -149,7 +149,7 @@ const LoginForm = () => {
                 placeholder="Enter your mail"
                 className="py-2 px-5 sm:py-2.5 sm:px-6 rounded-[12px] border-2 border-gray-300 focus:border-blue-400 focus:outline-none transition bg-gray-100 text-gray-800"
                 required
-                defaultValue="user@gmail.com" // For testing
+                defaultValue="" // For testing
               />
             </div>
 
@@ -164,7 +164,7 @@ const LoginForm = () => {
                 className="py-2 px-5 sm:py-2.5 sm:px-6 rounded-[12px] border-2 border-gray-300 focus:border-blue-400 focus:outline-none transition bg-gray-100 text-gray-800"
                 required
                 minLength={6}
-                defaultValue="123456" // For testing
+                defaultValue="" // For testing
               />
             </div>
 
