@@ -2,7 +2,7 @@
 
 import { useGetPaymentsQuery } from "@/redux/features/auth/paymentApi";
 import { useGetUsersQuery } from "@/redux/features/auth/userApi";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 interface WeeklyData {
   week: string;
@@ -17,31 +17,77 @@ const WeeklyChart = () => {
   const { data: subscriptionsData } = useGetPaymentsQuery("all");
   
   const subscriptions = subscriptionsData?.subscriptions ?? [];
+  
+  // Generate years starting from 2025
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(() => {
+    const yearList = [];
+    const startYear = 2025;
+    const endYear = Math.max(currentYear, startYear) + 3; // Current year or 2025, plus 3 years ahead
+    for (let year = startYear; year <= endYear; year++) {
+      yearList.push(year);
+    }
+    return yearList;
+  }, [currentYear]);
+  
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
-  // Get last 7 weeks of data
+  // Get last 7 weeks of data for selected year
   const weeklyData = useMemo(() => {
     const weeks: WeeklyData[] = [];
     const now = new Date();
     
+    // Determine the reference date based on selected year
+    let referenceDate: Date;
+    if (selectedYear > currentYear) {
+      // Future year - use end of that year (will show empty data)
+      referenceDate = new Date(selectedYear, 11, 31);
+    } else if (selectedYear < currentYear) {
+      // Past year - use end of that year
+      referenceDate = new Date(selectedYear, 11, 31);
+    } else {
+      // Current year - use today
+      referenceDate = now;
+    }
+    
+    // Ensure reference date doesn't go beyond the selected year
+    const yearEnd = new Date(selectedYear, 11, 31, 23, 59, 59);
+    if (referenceDate > yearEnd) {
+      referenceDate = yearEnd;
+    }
+    
     // Generate last 7 weeks
     for (let i = 6; i >= 0; i--) {
-      const weekEnd = new Date(now);
-      weekEnd.setDate(now.getDate() - (i * 7));
-      const weekStart = new Date(weekEnd);
+      let weekEnd = new Date(referenceDate);
+      weekEnd.setDate(referenceDate.getDate() - (i * 7));
+      let weekStart = new Date(weekEnd);
       weekStart.setDate(weekEnd.getDate() - 6);
+      
+      // Ensure week is within the selected year
+      if (weekStart.getFullYear() < selectedYear) {
+        weekStart = new Date(selectedYear, 0, 1);
+      }
+      if (weekEnd.getFullYear() > selectedYear) {
+        weekEnd = new Date(selectedYear, 11, 31, 23, 59, 59);
+      }
+      
+      // Skip if week is completely outside the selected year
+      if (weekStart.getFullYear() !== selectedYear && weekEnd.getFullYear() !== selectedYear) {
+        continue;
+      }
       
       const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
       const weekShort = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       
-      // Filter data for this week
+      // Filter data for this week (only from selected year)
       const weekSubscriptions = subscriptions.filter((sub) => {
         const createdDate = new Date(sub.createdAt);
-        return createdDate >= weekStart && createdDate <= weekEnd;
+        return createdDate >= weekStart && createdDate <= weekEnd && createdDate.getFullYear() === selectedYear;
       });
       
       const weekUsers = users?.filter((user: any) => {
         const createdDate = new Date(user.createdAt);
-        return createdDate >= weekStart && createdDate <= weekEnd;
+        return createdDate >= weekStart && createdDate <= weekEnd && createdDate.getFullYear() === selectedYear;
       }) ?? [];
       
       const weekRevenue = weekSubscriptions.reduce(
@@ -59,7 +105,7 @@ const WeeklyChart = () => {
     }
     
     return weeks;
-  }, [subscriptions, users]);
+  }, [subscriptions, users, selectedYear, currentYear]);
 
   const maxRevenue = Math.max(...weeklyData.map((d) => d.revenue), 1);
   const maxUsers = Math.max(...weeklyData.map((d) => d.users), 1);
@@ -68,103 +114,143 @@ const WeeklyChart = () => {
 
   return (
     <div className="space-y-6">
+      {/* Year Filter */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+        <div className="flex items-center gap-4">
+          <label htmlFor="year-filter" className="text-sm font-medium text-gray-700">
+            Filter by Year:
+          </label>
+          <select
+            id="year-filter"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 cursor-pointer"
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Bar Chart */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Weekly Bar Chart</h2>
-          <p className="text-sm text-gray-500 mt-1">Revenue, Users, and Subscriptions Overview</p>
+          <p className="text-sm text-gray-500 mt-1">Revenue, Users, and Subscriptions Overview - {selectedYear}</p>
         </div>
         
-        <div className="space-y-4">
-          {weeklyData.map((data, index) => (
-            <div key={index} className="space-y-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-semibold text-gray-700">{data.week}</span>
-                <div className="flex gap-4 text-xs text-gray-600">
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">${data.revenue.toFixed(2)}</span>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded">{data.users} users</span>
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">{data.subscriptions} subs</span>
-                </div>
-              </div>
+        <div className="relative h-96">
+          {/* Grid Lines - Behind everything */}
+          <div className="absolute inset-0 flex flex-col justify-between pl-12 pr-4 pb-12 pointer-events-none z-0">
+            {[0, 0.5, 1].map((ratio) => (
+              <div
+                key={ratio}
+                className="border-t border-gray-200"
+                style={{ marginTop: ratio === 0 ? '0' : ratio === 0.5 ? 'auto' : 'auto', marginBottom: ratio === 1 ? '0' : 'auto' }}
+              />
+            ))}
+          </div>
+
+          {/* Y-Axis Labels */}
+          <div className="absolute left-0 top-0 bottom-12 flex flex-col justify-between px-2 text-xs text-gray-500 z-20">
+            <span>{maxValue > 0 ? Math.round(maxValue).toLocaleString() : '0'}</span>
+            <span>{maxValue > 0 ? Math.round(maxValue / 2).toLocaleString() : '0'}</span>
+            <span>0</span>
+          </div>
+
+          {/* Chart Area with Bars */}
+          <div className="absolute inset-0 flex items-end justify-between gap-2 pl-12 pr-4 pb-12 z-20">
+            {weeklyData.map((data, index) => {
+              const revenueHeight = maxRevenue > 0 ? (data.revenue / maxRevenue) * 100 : 0;
+              const usersHeight = maxUsers > 0 ? (data.users / maxUsers) * 100 : 0;
+              const subscriptionsHeight = maxSubscriptions > 0 ? (data.subscriptions / maxSubscriptions) * 100 : 0;
               
-              {/* Revenue Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-600 w-28 font-medium flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-blue-500"></span>
-                    Revenue
-                  </span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-7 relative overflow-hidden shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-md"
-                      style={{
-                        width: `${maxRevenue > 0 ? Math.max((data.revenue / maxRevenue) * 100, 2) : 0}%`,
-                      }}
-                    >
-                      {data.revenue > 0 && (
-                        <span className="text-xs text-white font-semibold">
-                          ${data.revenue.toFixed(2)}
-                        </span>
-                      )}
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center gap-2 group h-full">
+                  {/* Bars Container */}
+                  <div className="w-full flex items-end justify-center gap-1 h-full relative">
+                    {/* Revenue Bar */}
+                    <div className="flex-1 flex flex-col items-center justify-end h-full">
+                      <div
+                        className="w-full bg-gradient-to-t from-blue-500 to-blue-600 rounded-t transition-all duration-500 relative group-hover:from-blue-400 group-hover:to-blue-500 shadow-md hover:shadow-lg cursor-pointer"
+                        style={{
+                          height: `${Math.max(revenueHeight, 0.5)}%`,
+                          minHeight: revenueHeight > 0 ? '4px' : '0',
+                        }}
+                        title={`Revenue: $${data.revenue.toFixed(2)}`}
+                      >
+                        {revenueHeight > 5 && (
+                          <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 font-semibold whitespace-nowrap">
+                            ${data.revenue.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {data.revenue === 0 && (
-                      <span className="absolute right-3 top-1.5 text-xs text-gray-400">$0.00</span>
-                    )}
+                    
+                    {/* Users Bar */}
+                    <div className="flex-1 flex flex-col items-center justify-end h-full">
+                      <div
+                        className="w-full bg-gradient-to-t from-green-500 to-green-600 rounded-t transition-all duration-500 relative group-hover:from-green-400 group-hover:to-green-500 shadow-md hover:shadow-lg cursor-pointer"
+                        style={{
+                          height: `${Math.max(usersHeight, 0.5)}%`,
+                          minHeight: usersHeight > 0 ? '4px' : '0',
+                        }}
+                        title={`Users: ${data.users}`}
+                      >
+                        {usersHeight > 5 && (
+                          <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 font-semibold whitespace-nowrap">
+                            {data.users}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Subscriptions Bar */}
+                    <div className="flex-1 flex flex-col items-center justify-end h-full">
+                      <div
+                        className="w-full bg-gradient-to-t from-purple-500 to-purple-600 rounded-t transition-all duration-500 relative group-hover:from-purple-400 group-hover:to-purple-500 shadow-md hover:shadow-lg cursor-pointer"
+                        style={{
+                          height: `${Math.max(subscriptionsHeight, 0.5)}%`,
+                          minHeight: subscriptionsHeight > 0 ? '4px' : '0',
+                        }}
+                        title={`Subscriptions: ${data.subscriptions}`}
+                      >
+                        {subscriptionsHeight > 5 && (
+                          <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 font-semibold whitespace-nowrap">
+                            {data.subscriptions}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Week Label */}
+                  <div className="text-xs text-gray-600 font-medium mt-2 text-center w-full">
+                    {data.weekShort}
                   </div>
                 </div>
-                
-                {/* Users Bar */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-600 w-28 font-medium flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-green-500"></span>
-                    Users
-                  </span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-7 relative overflow-hidden shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-green-500 to-green-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-md"
-                      style={{
-                        width: `${maxUsers > 0 ? Math.max((data.users / maxUsers) * 100, 2) : 0}%`,
-                      }}
-                    >
-                      {data.users > 0 && (
-                        <span className="text-xs text-white font-semibold">
-                          {data.users}
-                        </span>
-                      )}
-                    </div>
-                    {data.users === 0 && (
-                      <span className="absolute right-3 top-1.5 text-xs text-gray-400">0</span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Subscriptions Bar */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-600 w-28 font-medium flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-purple-500"></span>
-                    Subscriptions
-                  </span>
-                  <div className="flex-1 bg-gray-200 rounded-full h-7 relative overflow-hidden shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-purple-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 shadow-md"
-                      style={{
-                        width: `${maxSubscriptions > 0 ? Math.max((data.subscriptions / maxSubscriptions) * 100, 2) : 0}%`,
-                      }}
-                    >
-                      {data.subscriptions > 0 && (
-                        <span className="text-xs text-white font-semibold">
-                          {data.subscriptions}
-                        </span>
-                      )}
-                    </div>
-                    {data.subscriptions === 0 && (
-                      <span className="absolute right-3 top-1.5 text-xs text-gray-400">0</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-6 mt-6 pt-6 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            <span className="text-sm text-gray-600">Revenue</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span className="text-sm text-gray-600">Users</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+            <span className="text-sm text-gray-600">Subscriptions</span>
+          </div>
         </div>
       </div>
 
@@ -172,7 +258,7 @@ const WeeklyChart = () => {
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Weekly Line Chart</h2>
-          <p className="text-sm text-gray-500 mt-1">Trend Analysis Over Time</p>
+          <p className="text-sm text-gray-500 mt-1">Trend Analysis Over Time - {selectedYear}</p>
         </div>
         
         <div className="relative h-80">
