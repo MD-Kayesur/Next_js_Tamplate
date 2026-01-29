@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  output: "standalone",
+
   images: {
     remotePatterns: [
       {
@@ -8,11 +9,33 @@ const nextConfig = {
         hostname: "res.cloudinary.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
 };
 
 module.exports = nextConfig;
+
+
+// /** @type {import('next').NextConfig} */
+// const nextConfig = {
+//   output: 'standalone',
+//   images: {
+//     remotePatterns: [
+//       {
+//         protocol: "https",
+//         hostname: "res.cloudinary.com",
+//         pathname: "/**",
+//       },
+//     ],
+//   },
+// };
+
+// module.exports = nextConfig;
 
 // import { NextConfig } from "next";
 
