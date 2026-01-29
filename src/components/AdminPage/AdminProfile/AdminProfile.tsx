@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -16,7 +17,15 @@ import {
   useUpdateProfileMutation,
   useChangePasswordMutation,
 } from "@/redux/features/auth/profileApi";
-import { Camera, Loader2, Mail, Phone, RefreshCw, Lock, Eye, EyeOff } from "lucide-react";
+import {
+  useGetAllWhatsAppQuery,
+  useCreateWhatsAppMutation,
+  useGetAllPhonesQuery,
+  useCreatePhoneMutation,
+  useGetAllEmailsQuery,
+  useCreateEmailMutation,
+} from "@/redux/features/contact/contactApi";
+import { Camera, Loader2, Mail, Phone, RefreshCw, Lock, Eye, EyeOff, MessageCircle, PhoneCall } from "lucide-react";
 import { LiaUserEditSolid } from "react-icons/lia";
 
 import { toast } from "sonner";
@@ -27,10 +36,147 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import PageLoader from "../Shared/PageLoader";
 
+
+interface ContactInfoItemProps {
+  icon: any;
+  label: string;
+  value?: string;
+  onSave: (val: string) => Promise<void>;
+  isLoading: boolean;
+  validator?: (val: string) => string | null;
+}
+
+const ContactInfoItem = ({
+  icon: Icon,
+  label,
+  value,
+  onSave,
+  isLoading,
+  validator,
+}: ContactInfoItemProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(value || "");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (value) {
+      setInputValue(value);
+      setError(null);
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    if (validator) {
+      setError(validator(val));
+    } else {
+      setError(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!inputValue.trim()) return;
+
+    if (validator) {
+      const valError = validator(inputValue);
+      if (valError) {
+        setError(valError);
+        toast.error(valError);
+        return;
+      }
+    }
+
+    await onSave(inputValue);
+    setIsEditing(false);
+    setError(null);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setInputValue(value || "");
+    setError(null);
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-2">
+          <Icon className="h-4 w-4 text-gray-400" />
+          <h3 className="text-sm text-gray-500 font-semibold">{label}</h3>
+        </div>
+        {!isEditing && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditing(true)}
+            className="h-8 text-blue-600 hover:text-blue-700 cursor-pointer"
+          >
+            Edit
+          </Button>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              value={inputValue}
+              onChange={handleChange}
+              placeholder={`Enter ${label}`}
+              className={`bg-white focus-visible:ring-blue-500 ${
+                error ? "border-red-500 focus-visible:ring-red-500" : ""
+              }`}
+            />
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isLoading || !!error}
+              className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Save"
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleCancel}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </div>
+          {error && (
+            <p className="text-xs text-red-500 font-medium animate-in slide-in-from-top-1 fade-in duration-200">
+              {error}
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="text-gray-900 font-medium break-all">
+          {value || "Not set"}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const AdminProfile = () => {
   const { data: profile, isLoading, isError, error } = useGetProfileQuery();
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
   const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation();
+
+  const { data: whatsappData } = useGetAllWhatsAppQuery();
+  const [createWhatsApp, { isLoading: isCreatingWhatsApp }] = useCreateWhatsAppMutation();
+
+  const { data: phoneData } = useGetAllPhonesQuery();
+  const [createPhone, { isLoading: isCreatingPhone }] = useCreatePhoneMutation();
+
+  const { data: emailData } = useGetAllEmailsQuery();
+  const [createEmail, { isLoading: isCreatingEmail }] = useCreateEmailMutation();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -603,6 +749,73 @@ const AdminProfile = () => {
               </div>
             </div>
           )}
+
+          {/* Contact Configuration Section */}
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <h3 className="text-lg font-semibold text-black">
+              Contact Configuration
+            </h3>
+
+            <ContactInfoItem
+              icon={MessageCircle}
+              label="WhatsApp"
+              value={whatsappData?.whatsappNumber}
+              onSave={async (val) => {
+                try {
+                  await createWhatsApp({ whatsappNumber: val }).unwrap();
+                  toast.success("WhatsApp number updated");
+                } catch (error) {
+                  toast.error("Failed to update WhatsApp");
+                  console.error(error);
+                }
+              }}
+              isLoading={isCreatingWhatsApp}
+              validator={(val) => {
+                if (!/^\+\d+$/.test(val)) return "WhatsApp number must be in E.164 format (e.g., +1234567890)";
+                return null;
+              }}
+            />
+
+            <ContactInfoItem
+              icon={PhoneCall}
+              label="Support Phone"
+              value={phoneData?.phone}
+              onSave={async (val) => {
+                try {
+                  await createPhone({ phone: val }).unwrap();
+                  toast.success("Support phone updated");
+                } catch (error) {
+                  toast.error("Failed to update support phone");
+                  console.error(error);
+                }
+              }}
+              isLoading={isCreatingPhone}
+              validator={(val) => {
+                if (!/^\+\d+$/.test(val)) return "Phone number must be in E.164 format (e.g., +1234567890)";
+                return null;
+              }}
+            />
+
+            <ContactInfoItem
+              icon={Mail}
+              label="Support Email"
+              value={emailData?.email}
+              onSave={async (val) => {
+                try {
+                  await createEmail({ email: val }).unwrap();
+                  toast.success("Support email updated");
+                } catch (error) {
+                  toast.error("Failed to update support email");
+                  console.error(error);
+                }
+              }}
+              isLoading={isCreatingEmail}
+              validator={(val) => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Invalid email address";
+                return null;
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
