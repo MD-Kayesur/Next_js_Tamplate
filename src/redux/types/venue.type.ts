@@ -322,6 +322,35 @@ export interface SubscriptionsResponse {
 
 export type SubscriptionStatusFilter = "all" | "active" | "expired";
 
+/* Subscription Graph response */
+export interface SubscriptionGraphDateRange {
+  start: string;
+  end: string;
+}
+
+export interface SubscriptionGraphSummary {
+  totalSubscriptions: number;
+  activeSubscriptions: number;
+  expiredSubscriptions: number;
+  totalRevenue: number;
+  averageRevenue: number;
+}
+
+export interface SubscriptionGraphDatum {
+  period: string; // e.g., 2025-W04 or date
+  count: number;
+  revenue: number;
+  active: number;
+  expired: number;
+}
+
+export interface SubscriptionGraphResponse {
+  period: string; // requested period grouping
+  dateRange: SubscriptionGraphDateRange;
+  summary: SubscriptionGraphSummary;
+  timeSeriesData: SubscriptionGraphDatum[];
+}
+
 /* Admin/ user profile */
 export interface IProfile {
   id: string;
